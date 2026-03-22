@@ -1,142 +1,130 @@
 import streamlit as st
 from groq import Groq
+import re
 
-# --- Settings & UI Configuration ---
-st.set_page_config(page_title="TechieVest Content AI 2026", layout="wide", page_icon="💰")
+# --- UI & Styling ---
+st.set_page_config(page_title="TechieVest Content AI PRO", layout="wide", page_icon="📈")
 
-# Custom CSS for Professional Look (Corrected parameter name)
 st.markdown("""
     <style>
-    .main { background-color: #f5f7f9; }
-    .stButton>button { 
-        width: 100%; 
-        border-radius: 8px; 
-        height: 3.5em; 
-        background-color: #1a73e8; 
-        color: white; 
-        font-weight: bold;
-        border: none;
+    .main { background-color: #f8f9fa; }
+    .stTabs [data-baseweb="tab-list"] { gap: 10px; }
+    .stTabs [data-baseweb="tab"] {
+        height: 50px; white-space: pre-wrap; background-color: #ffffff;
+        border-radius: 10px 10px 0px 0px; gap: 1px; padding-left: 20px; padding-right: 20px;
     }
-    .stDownloadButton>button { 
-        width: 100%; 
-        border-radius: 8px; 
-        background-color: #34a853; 
-        color: white; 
-    }
-    div[data-testid="stExpander"] {
-        background-color: white;
-        border-radius: 10px;
-    }
+    .stTabs [aria-selected="true"] { background-color: #1a73e8 !important; color: white !important; }
+    .seo-card { padding: 15px; border-radius: 10px; background-color: #ffffff; border-left: 5px solid #1a73e8; margin-bottom: 10px; box-shadow: 2px 2px 5px rgba(0,0,0,0.05); }
+    .score-text { font-size: 28px; font-weight: bold; color: #1a73e8; }
     </style>
     """, unsafe_allow_html=True)
 
-st.title("🚀 TechieVest Content Engine v4.0")
-st.caption("Advanced AI Automation for Techievest.com | Powered by Groq LPU™")
+# --- Logic Functions ---
+def analyze_seo(text, keyword):
+    score = 0
+    checks = []
+    
+    # Word Count Check
+    words = len(text.split())
+    if words >= 1000: score += 40
+    elif words >= 600: score += 20
+    else: checks.append("❌ Article is too short for SEO (Under 600 words).")
+    
+    # Keyword Placement
+    if keyword.lower() in text.lower():
+        score += 30
+        if f"##" in text and keyword.lower() in text.lower().split('##')[1].split('\n')[0]:
+            score += 20
+        else: checks.append(f"⚠️ Keyword '{keyword}' missing in H2 headings.")
+    else:
+        checks.append(f"❌ Primary Keyword not found in text.")
 
-# Sidebar for API Key and Info
+    # Structure Check
+    if "###" in text: score += 10
+    else: checks.append("⚠️ No H3 subheadings found. Use them to break down topics.")
+    
+    return score, checks
+
+# --- Sidebar ---
 with st.sidebar:
-    st.header("🔑 Authentication")
+    st.title("🛡️ TechieVest PRO")
     api_key = st.text_input("Enter Groq API Key:", type="password")
     st.markdown("---")
-    st.write("👤 Owner: **Mouhcine Digital Systems**")
-    st.info("This tool uses Llama 3.3 and 3.1 models for the highest reasoning quality in 2026.")
+    st.info("Target: **Techievest.com**\nOwner: **Mouhcine Digital Systems**")
+    st.write("v7.0 - Final Enterprise Edition")
 
+# --- Main App Logic ---
 if api_key:
     try:
         client = Groq(api_key=api_key)
-        
-        # Tabs for different features
-        tab1, tab2, tab3 = st.tabs(["📝 Article Writer", "🎯 Facebook Sniper", "🖼️ Image Prompter"])
+        tab1, tab2, tab3, tab4 = st.tabs(["📝 Writer & SEO", "🎯 Social Sniper", "🖼️ Visual Studio", "📊 Content Stats"])
 
-        # --- Tab 1: SEO Article Generator ---
         with tab1:
-            st.subheader("Generate High-Authority SEO Content")
-            col1, col2 = st.columns([2, 1])
-            
-            with col1:
-                keyword = st.text_input("Topic / Main Keyword:", placeholder="e.g., Best Fintech Apps for Beginners 2026")
-                points = st.text_area("Specific Points to cover:", placeholder="Mention security, AI integration, low fees, etc.", height=100)
-            
-            with col2:
-                model_engine = st.selectbox("Select Model:", ["llama-3.3-70b-versatile", "llama-3.1-405b-reasoning"])
-                article_length = st.select_slider("Target Word Count:", options=[600, 1000, 1500, 2000], value=1000)
+            col_in, col_set = st.columns([2, 1])
+            with col_in:
+                topic = st.text_input("Main Keyword / Topic:", placeholder="e.g., Best Fintech Stocks 2026")
+                details = st.text_area("Specific Instructions:", placeholder="Focus on AI banking, crypto trends...")
+            with col_set:
+                model = st.selectbox("Engine:", ["llama-3.3-70b-versatile", "llama-3.1-405b-reasoning"])
+                target_words = st.select_slider("Length:", options=[600, 1000, 1500, 2000], value=1000)
 
-            if st.button("🚀 Generate Mega Article"):
-                if keyword:
-                    with st.spinner("AI is crafting your professional article..."):
-                        system_msg = f"You are a professional Fintech journalist writing for Techievest.com. Write a unique, human-like article about {keyword}. Focus on 2026 data. Use Markdown (H2, H3, lists). Tone: Professional & Trustworthy."
-                        user_msg = f"Write {article_length} words about {keyword}. Key points to include: {points}. Formatting: Bold important financial terms, include a 'Verdict' section at the end."
-                        
-                        try:
-                            completion = client.chat.completions.create(
-                                model=model_engine,
-                                messages=[
-                                    {"role": "system", "content": system_msg},
-                                    {"role": "user", "content": user_msg}
-                                ],
-                                temperature=0.7
-                            )
-                            article_text = completion.choices[0].message.content
-                            
-                            # Store in session state for other tabs
-                            st.session_state['article_output'] = article_text
-                            st.session_state['article_topic'] = keyword
-                            
-                            st.markdown("---")
-                            st.markdown(article_text)
-                            st.download_button("📩 Download Markdown (.md)", article_text, file_name=f"{keyword.replace(' ', '_')}.md")
-                        except Exception as e:
-                            st.error(f"Groq API Error: {e}")
-                else:
-                    st.warning("Please enter a topic first.")
+            if st.button("🚀 Generate Optimized Content"):
+                with st.spinner("AI is building your authority article..."):
+                    sys_prompt = f"You are a top-tier Fintech expert for Techievest.com. Write a unique, 2026-focused article about {topic}. Use Markdown (H2, H3). Include a FAQ."
+                    user_prompt = f"Topic: {topic}\nInstructions: {details}\nWords: {target_words}. Add a list of 5 'Key Takeaways' and suggest 3 SEO Tags at the end."
+                    
+                    res = client.chat.completions.create(model=model, messages=[
+                        {"role": "system", "content": sys_prompt},
+                        {"role": "user", "content": user_prompt}
+                    ], temperature=0.7)
+                    
+                    full_content = res.choices[0].message.content
+                    st.session_state['article'] = full_content
+                    st.session_state['topic'] = topic
+                    
+                    st.markdown("---")
+                    st.markdown(full_content)
+                    st.download_button("📩 Export for WordPress", full_content, file_name=f"{topic}.md")
 
-        # --- Tab 2: Facebook Sniper ---
         with tab2:
-            st.header("🎯 Viral Social Media Hooks")
-            st.write("Generate high-CTR hooks for Facebook Groups and Ads.")
-            
-            # Use generated article or custom text
-            context = st.text_area("Context for Hooks:", value=st.session_state.get('article_output', ''), height=200)
-            
-            if st.button("🎯 Generate Sniper Hooks"):
-                if context:
-                    with st.spinner("Analyzing content for viral hooks..."):
-                        hook_sys = "You are a master of Digital Marketing. Create 3 viral Facebook hooks: 1 Controversial, 1 Question-based, and 1 FOMO-based. Use emojis and keep it high-energy."
-                        hook_comp = client.chat.completions.create(
-                            model="llama-3.3-70b-versatile",
-                            messages=[
-                                {"role": "system", "content": hook_sys},
-                                {"role": "user", "content": f"Article context: {context[:1500]}"}
-                            ]
-                        )
-                        st.success("Hooks Generated Successfully:")
-                        st.write(hook_comp.choices[0].message.content)
-                else:
-                    st.warning("No context found. Please generate an article or paste text here.")
+            st.header("🎯 Facebook Sniper Hooks")
+            if 'article' in st.session_state:
+                if st.button("Generate Viral Hooks"):
+                    with st.spinner("Analyzing hooks..."):
+                        hook_res = client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[
+                            {"role": "system", "content": "You are a viral marketing expert. Create 3 Facebook hooks (Story, FOMO, Question) with emojis for this article."},
+                            {"role": "user", "content": st.session_state['article'][:1500]}
+                        ])
+                        st.success("Hooks Ready for Facebook Groups:")
+                        st.write(hook_res.choices[0].message.content)
+            else: st.warning("Generate an article first.")
 
-        # --- Tab 3: Image Prompter ---
         with tab3:
-            st.header("🖼️ AI Image Prompt Designer")
-            st.write("Get the perfect prompt for Gemini or Midjourney.")
-            
-            if st.button("🎨 Create Visual Prompt"):
-                current_topic = st.session_state.get('article_topic')
-                if current_topic:
-                    with st.spinner("Designing professional prompt..."):
-                        img_sys = "You are a creative director. Design a highly detailed image prompt for a fintech blog post thumbnail. Style: 3D Isometric, high-tech, professional, neon-accents."
-                        img_comp = client.chat.completions.create(
-                            model="llama-3.3-70b-versatile",
-                            messages=[
-                                {"role": "system", "content": img_sys},
-                                {"role": "user", "content": f"Create a prompt for: {current_topic}"}
-                            ]
-                        )
-                        st.code(img_comp.choices[0].message.content, language="text")
-                        st.info("Copy the text above and use it in your AI image generator.")
-                else:
-                    st.warning("Generate an article first to get a tailored prompt.")
+            st.header("🖼️ AI Image Designer")
+            if 'topic' in st.session_state:
+                if st.button("Generate Professional Image Prompt"):
+                    img_res = client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[
+                        {"role": "system", "content": "Create a detailed 3D render image prompt for a blog thumbnail. Style: High-tech, blue/gold colors, Fintech theme."},
+                        {"role": "user", "content": f"Topic: {st.session_state['topic']}"}
+                    ])
+                    st.code(img_res.choices[0].message.content, language="text")
+                    st.info("Use this prompt in Gemini Nano Banana 2.")
+            else: st.warning("Generate an article first.")
+
+        with tab4:
+            st.header("📊 Real-time SEO Audit")
+            if 'article' in st.session_state:
+                score, checks = analyze_seo(st.session_state['article'], st.session_state['topic'])
+                col_a, col_b = st.columns(2)
+                with col_a:
+                    st.markdown(f"<div class='seo-card'><p>Optimization Score</p><p class='score-text'>{score}/100</p></div>", unsafe_allow_html=True)
+                with col_b:
+                    st.markdown("### SEO Checklist")
+                    for check in checks: st.write(check)
+                    if not checks: st.success("Everything looks perfect for ranking!")
+            else: st.info("No content to analyze yet.")
 
     except Exception as e:
-        st.error(f"Connection Error: {e}")
+        st.error(f"API Error: {e}")
 else:
-    st.warning("👈 Please enter your Groq API Key in the sidebar to activate the machine.")
+    st.warning("Please enter your API key in the sidebar to start.")
