@@ -3,128 +3,131 @@ from groq import Groq
 import re
 
 # --- UI & Styling ---
-st.set_page_config(page_title="TechieVest Content AI PRO", layout="wide", page_icon="📈")
+st.set_page_config(page_title="TechieVest AI PRO v8", layout="wide", page_icon="🚀")
 
 st.markdown("""
     <style>
-    .main { background-color: #f8f9fa; }
-    .stTabs [data-baseweb="tab-list"] { gap: 10px; }
+    .main { background-color: #f4f7f6; }
+    .stTabs [data-baseweb="tab-list"] { gap: 8px; }
     .stTabs [data-baseweb="tab"] {
-        height: 50px; white-space: pre-wrap; background-color: #ffffff;
-        border-radius: 10px 10px 0px 0px; gap: 1px; padding-left: 20px; padding-right: 20px;
+        height: 45px; background-color: #ffffff; border-radius: 5px; padding: 10px 20px;
     }
     .stTabs [aria-selected="true"] { background-color: #1a73e8 !important; color: white !important; }
-    .seo-card { padding: 15px; border-radius: 10px; background-color: #ffffff; border-left: 5px solid #1a73e8; margin-bottom: 10px; box-shadow: 2px 2px 5px rgba(0,0,0,0.05); }
-    .score-text { font-size: 28px; font-weight: bold; color: #1a73e8; }
+    .seo-card { padding: 20px; border-radius: 12px; background-color: #ffffff; border-left: 6px solid #1a73e8; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+    .html-box { background-color: #282c34; color: #61afef; padding: 15px; border-radius: 8px; font-family: 'Courier New', monospace; overflow-x: auto; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- Logic Functions ---
+# --- SEO Logic Function (Fixed Case Sensitivity) ---
 def analyze_seo(text, keyword):
     score = 0
     checks = []
+    text_lower = text.lower()
+    kw_lower = keyword.lower()
     
-    # Word Count Check
+    # 1. Word Count
     words = len(text.split())
     if words >= 1000: score += 40
     elif words >= 600: score += 20
-    else: checks.append("❌ Article is too short for SEO (Under 600 words).")
+    else: checks.append(f"❌ Short content ({words} words). Google prefers 1000+.")
     
-    # Keyword Placement
-    if keyword.lower() in text.lower():
+    # 2. Keyword Check (Fixed)
+    if kw_lower in text_lower:
         score += 30
-        if f"##" in text and keyword.lower() in text.lower().split('##')[1].split('\n')[0]:
-            score += 20
-        else: checks.append(f"⚠️ Keyword '{keyword}' missing in H2 headings.")
+        if kw_lower in text_lower[:1000]: score += 10 # Found in intro
+        if "##" in text and kw_lower in text_lower: score += 10 # Found in headers
     else:
-        checks.append(f"❌ Primary Keyword not found in text.")
+        checks.append(f"❌ Exact keyword '{keyword}' not detected. Use it naturally in text and H2.")
 
-    # Structure Check
+    # 3. Structure
     if "###" in text: score += 10
-    else: checks.append("⚠️ No H3 subheadings found. Use them to break down topics.")
+    else: checks.append("⚠️ Add H3 subheadings for better readability.")
     
     return score, checks
 
+# --- HTML Converter for WordPress ---
+def convert_to_wordpress_html(md_text):
+    # تحويل العناوين
+    html = re.sub(r'^### (.*)$', r'<h3>\1</h3>', md_text, flags=re.M)
+    html = re.sub(r'^## (.*)$', r'<h2>\1</h2>', html, flags=re.M)
+    html = re.sub(r'^# (.*)$', r'<h1>\1</h1>', html, flags=re.M)
+    # تحويل القوائم
+    html = re.sub(r'^\* (.*)$', r'<li>\1</li>', html, flags=re.M)
+    html = re.sub(r'^- (.*)$', r'<li>\1</li>', html, flags=re.M)
+    # تحويل Bold
+    html = re.sub(r'\*\*(.*?)\*\*', r'<strong>\1</strong>', html)
+    # إضافة فقرات (بسيطة)
+    html = html.replace('\n\n', '</p><p>').replace('\n', '<br>')
+    return f"<p>{html}</p>"
+
 # --- Sidebar ---
 with st.sidebar:
-    st.title("🛡️ TechieVest PRO")
-    api_key = st.text_input("Enter Groq API Key:", type="password")
+    st.title("🛡️ TechieVest v8.0")
+    api_key = st.text_input("Groq API Key:", type="password")
     st.markdown("---")
-    st.info("Target: **Techievest.com**\nOwner: **Mouhcine Digital Systems**")
-    st.write("v7.0 - Final Enterprise Edition")
+    st.write("👤 Owner: **Mouhcine Digital Systems**")
+    st.info("Mode: **WordPress Optimized**")
 
-# --- Main App Logic ---
+# --- Main App ---
 if api_key:
     try:
         client = Groq(api_key=api_key)
-        tab1, tab2, tab3, tab4 = st.tabs(["📝 Writer & SEO", "🎯 Social Sniper", "🖼️ Visual Studio", "📊 Content Stats"])
+        tab1, tab2, tab3, tab4 = st.tabs(["📝 Writer", "💻 WordPress HTML", "🎯 Sniper", "📊 SEO Audit"])
 
         with tab1:
-            col_in, col_set = st.columns([2, 1])
-            with col_in:
-                topic = st.text_input("Main Keyword / Topic:", placeholder="e.g., Best Fintech Stocks 2026")
-                details = st.text_area("Specific Instructions:", placeholder="Focus on AI banking, crypto trends...")
-            with col_set:
-                model = st.selectbox("Engine:", ["llama-3.3-70b-versatile", "llama-3.1-405b-reasoning"])
-                target_words = st.select_slider("Length:", options=[600, 1000, 1500, 2000], value=1000)
+            col1, col2 = st.columns([2, 1])
+            with col1:
+                topic = st.text_input("Main Keyword:", placeholder="e.g., AI Banking Trends 2026")
+                extra = st.text_area("Extra Instructions:", placeholder="Mention security, Morocco context, etc.")
+            with col2:
+                model = st.selectbox("Model:", ["llama-3.3-70b-versatile", "llama-3.1-405b-reasoning"])
+                length = st.select_slider("Words:", options=[600, 1000, 1500, 2000], value=1000)
 
-            if st.button("🚀 Generate Optimized Content"):
-                with st.spinner("AI is building your authority article..."):
-                    sys_prompt = f"You are a top-tier Fintech expert for Techievest.com. Write a unique, 2026-focused article about {topic}. Use Markdown (H2, H3). Include a FAQ."
-                    user_prompt = f"Topic: {topic}\nInstructions: {details}\nWords: {target_words}. Add a list of 5 'Key Takeaways' and suggest 3 SEO Tags at the end."
+            if st.button("🚀 Generate Article"):
+                with st.spinner("Generating Authority Content..."):
+                    sys_p = f"You are a Senior Fintech Journalist for Techievest.com. Write a long-form article about {topic}. Use Markdown. Year: 2026."
+                    usr_p = f"Write {length} words on {topic}. Instructions: {extra}. Ensure the keyword '{topic}' appears in the first paragraph and at least one H2 header."
                     
                     res = client.chat.completions.create(model=model, messages=[
-                        {"role": "system", "content": sys_prompt},
-                        {"role": "user", "content": user_prompt}
+                        {"role": "system", "content": sys_p}, {"role": "user", "content": usr_p}
                     ], temperature=0.7)
                     
-                    full_content = res.choices[0].message.content
-                    st.session_state['article'] = full_content
+                    content = res.choices[0].message.content
+                    st.session_state['article'] = content
                     st.session_state['topic'] = topic
-                    
-                    st.markdown("---")
-                    st.markdown(full_content)
-                    st.download_button("📩 Export for WordPress", full_content, file_name=f"{topic}.md")
+                    st.markdown(content)
 
         with tab2:
-            st.header("🎯 Facebook Sniper Hooks")
+            st.header("💻 WordPress Ready HTML")
             if 'article' in st.session_state:
-                if st.button("Generate Viral Hooks"):
-                    with st.spinner("Analyzing hooks..."):
-                        hook_res = client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[
-                            {"role": "system", "content": "You are a viral marketing expert. Create 3 Facebook hooks (Story, FOMO, Question) with emojis for this article."},
-                            {"role": "user", "content": st.session_state['article'][:1500]}
-                        ])
-                        st.success("Hooks Ready for Facebook Groups:")
-                        st.write(hook_res.choices[0].message.content)
+                wp_html = convert_to_wordpress_html(st.session_state['article'])
+                st.info("Copy this code directly into the 'Text' or 'HTML' editor in WordPress.")
+                st.code(wp_html, language="html")
+                st.download_button("Download HTML File", wp_html, file_name=f"{st.session_state['topic']}.html")
             else: st.warning("Generate an article first.")
 
         with tab3:
-            st.header("🖼️ AI Image Designer")
-            if 'topic' in st.session_state:
-                if st.button("Generate Professional Image Prompt"):
-                    img_res = client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[
-                        {"role": "system", "content": "Create a detailed 3D render image prompt for a blog thumbnail. Style: High-tech, blue/gold colors, Fintech theme."},
-                        {"role": "user", "content": f"Topic: {st.session_state['topic']}"}
+            st.header("🎯 Facebook Sniper Hooks")
+            if 'article' in st.session_state:
+                if st.button("Get Viral Hooks"):
+                    h_res = client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[
+                        {"role": "system", "content": "Viral marketer expert. 3 high-CTR hooks with emojis."},
+                        {"role": "user", "content": st.session_state['article'][:1500]}
                     ])
-                    st.code(img_res.choices[0].message.content, language="text")
-                    st.info("Use this prompt in Gemini Nano Banana 2.")
+                    st.success("Hooks Created:")
+                    st.write(h_res.choices[0].message.content)
             else: st.warning("Generate an article first.")
 
         with tab4:
-            st.header("📊 Real-time SEO Audit")
+            st.header("📊 SEO Audit")
             if 'article' in st.session_state:
                 score, checks = analyze_seo(st.session_state['article'], st.session_state['topic'])
-                col_a, col_b = st.columns(2)
-                with col_a:
-                    st.markdown(f"<div class='seo-card'><p>Optimization Score</p><p class='score-text'>{score}/100</p></div>", unsafe_allow_html=True)
-                with col_b:
-                    st.markdown("### SEO Checklist")
-                    for check in checks: st.write(check)
-                    if not checks: st.success("Everything looks perfect for ranking!")
-            else: st.info("No content to analyze yet.")
+                st.markdown(f"<div class='seo-card'><h3>Score: {score}/100</h3></div>", unsafe_allow_html=True)
+                for c in checks: st.write(c)
+                if not checks: st.success("SEO Perfect!")
+            else: st.info("No content to analyze.")
 
     except Exception as e:
-        st.error(f"API Error: {e}")
+        st.error(f"Error: {e}")
 else:
-    st.warning("Please enter your API key in the sidebar to start.")
+    st.warning("Please enter your API Key in the sidebar.")
